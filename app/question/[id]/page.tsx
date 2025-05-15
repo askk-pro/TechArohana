@@ -23,8 +23,15 @@ import {
     X,
 } from "lucide-react"
 import Link from "next/link"
+import type { Metadata } from "next"
 
-export default function QuestionPage({ params }: { params: { id: string } }) {
+type PageProps = {
+    params: {
+        id: string
+    }
+}
+
+export default function QuestionPage({ params }: PageProps) {
     // Mock data for a question
     const question = {
         id: params.id,
@@ -399,4 +406,11 @@ console.log(counter()); // 3
             </div>
         </div>
     )
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+    return {
+        title: `Question: ${params.id}`,
+        description: "View and manage this interview question",
+    }
 }
