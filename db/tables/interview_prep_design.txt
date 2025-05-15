@@ -1,0 +1,53 @@
+INTERVIEW PREP MODULE – FUNCTIONAL DESIGN IDEAS
+
+✅ STRUCTURE:
+- Subjects → Topics → Sub-Topics → Questions
+- Each question links to a GitHub Gist with full content (question.md, answer.md, code files)
+
+✅ UI FEATURES PER QUESTION:
+1. Metadata Display
+   - Title, Difficulty, Tags
+   - “Top N” marker (from ChatGPT recommendations)
+
+2. Learning Tracker
+   - [✓] Mark as Read
+   - [✓] Understood
+   - [✓] I Know the Answer
+   - [✓] I’m Confident
+   - ⭐️ Mark as Important
+   - 🔼 Priority (0–10 scale)
+
+3. Comments & Personal Notes
+   - User can leave personal thoughts or explanations
+   - Option to mark as additional answer
+
+4. Sandbox Links
+   - Save multiple links to Replit, JSFiddle, CodePen, etc.
+
+5. Snooze Feature
+   - Temporarily hide a question until a given date
+
+6. Tags Management
+   - Add/remove custom tags per question
+
+7. Question Types
+   - Conceptual / Theory / Practical / Coding / Scenario
+
+8. Glossary per Topic
+   - Maintain a list of keywords and definitions per topic
+
+✅ ADMIN PANEL IDEAS:
+- Upload new questions (metadata + gist)
+- Attach existing gist via ID and filenames
+- Edit metadata (difficulty, tags, priority)
+- View question usage stats (audit logs)
+
+✅ USER DASHBOARD:
+- Track progress with filters:
+  - Show only: [Unread], [Understood], [Snoozed], [Important]
+- Sort by: [Priority], [Confidence], [Top N], [Last Picked]
+
+✅ BACKEND FEATURES:
+- Record every user interaction (pick, read, mark, etc.)
+- Limit random selection to active + not snoozed questions
+- Support full-text search and tag-based filtering
