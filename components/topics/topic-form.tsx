@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, type SubmitHandler } from "react-hook-form"
@@ -10,37 +10,71 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
-import type { Subject } from "@/lib/types"
-import { createSubject, updateSubject } from "@/app/actions/subjects"
-import { subjectSchema, type SubjectFormValues } from "@/lib/schemas/subject-schema"
+import { createTopic, updateTopic } from "@/app/actions/topics"
+import { topicSchema, type TopicFormValues } from "@/lib/schemas/topic-schema"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Archive, HelpCircle, Save, X } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Separator } from "@/components/ui/separator"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { createClient } from "@/utils/supabase/client"
+import type { Subject } from "@/lib/types"
 
 // Define the form schema type explicitly
-type FormValues = SubjectFormValues
+type FormValues = TopicFormValues
 
-interface SubjectFormProps {
-    subject?: Partial<Subject>
+interface TopicFormProps {
+    topic?: any
     onSuccess?: () => void
     mode?: "create" | "edit" | "details"
+    subjectId?: string
 }
 
-export function SubjectForm({ subject, onSuccess, mode = "create" }: SubjectFormProps) {
+export function TopicForm({ topic, onSuccess, mode = "create", subjectId }: TopicFormProps) {
     const router = useRouter()
     const { toast } = useToast()
     const [isLoading, setIsLoading] = useState(false)
     const isMobile = useIsMobile()
+    const [subjects, setSubjects] = useState<Subject[]>([])
+    const [isLoadingSubjects, setIsLoadingSubjects] = useState(false)
+
+    // Fetch subjects for the dropdown
+    useEffect(() => {
+        async function fetchSubjects() {
+            setIsLoadingSubjects(true)
+            const supabase = createClient()
+            const { data, error } = await supabase
+                .from("subjects")
+                .select("id, name")
+                .eq("is_deleted", false)
+                .eq("is_active", true)
+                .order("name")
+
+            if (error) {
+                console.error("Error fetching subjects:", error)
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "Failed to load subjects. Please try again.",
+                })
+            } else {
+                setSubjects(data as Subject[])
+            }
+            setIsLoadingSubjects(false)
+        }
+
+        fetchSubjects()
+    }, [toast])
 
     // Initialize form with default values
     const form = useForm<FormValues>({
-        resolver: zodResolver(subjectSchema) as any, // Use type assertion to bypass type checking
+        resolver: zodResolver(topicSchema) as any, // Use type assertion to bypass type checking
         defaultValues: {
-            name: subject?.name || "",
-            description: subject?.description || "",
-            is_active: subject?.is_active ?? true, // Use nullish coalescing to ensure boolean
-            is_shelved: subject?.is_shelved ?? false, // Default to not shelved
+            name: topic?.name || "",
+            description: topic?.description || "",
+            subject_id: topic?.subject_id || subjectId || "",
+            is_active: topic?.is_active ?? true, // Use nullish coalescing to ensure boolean
+            is_shelved: topic?.is_shelved ?? false, // Default to not shelved
         },
     })
 
@@ -50,29 +84,29 @@ export function SubjectForm({ subject, onSuccess, mode = "create" }: SubjectForm
         setIsLoading(true)
 
         try {
-            if (mode === "edit" && subject?.id) {
-                // Update existing subject
-                const result = await updateSubject(subject.id, values)
+            if (mode === "edit" && topic?.id) {
+                // Update existing topic
+                const result = await updateTopic(topic.id, values)
 
                 if (result.error) {
-                    throw new Error(typeof result.error === "string" ? result.error : "Failed to update subject")
+                    throw new Error(typeof result.error === "string" ? result.error : "Failed to update topic")
                 }
 
                 toast({
-                    title: "Subject updated",
-                    description: "The subject has been updated successfully.",
+                    title: "Topic updated",
+                    description: "The topic has been updated successfully.",
                 })
             } else if (mode === "create") {
-                // Create new subject
-                const result = await createSubject(values)
+                // Create new topic
+                const result = await createTopic(values)
 
                 if (result.error) {
-                    throw new Error(typeof result.error === "string" ? result.error : "Failed to create subject")
+                    throw new Error(typeof result.error === "string" ? result.error : "Failed to create topic")
                 }
 
                 toast({
-                    title: "Subject created",
-                    description: "The new subject has been created successfully.",
+                    title: "Topic created",
+                    description: "The new topic has been created successfully.",
                 })
             }
 
@@ -84,12 +118,11 @@ export function SubjectForm({ subject, onSuccess, mode = "create" }: SubjectForm
                 onSuccess()
             }
         } catch (error) {
-            console.error("Error saving subject:", error)
+            console.error("Error saving topic:", error)
             toast({
                 variant: "destructive",
                 title: "Error",
-                description:
-                    error instanceof Error ? error.message : "There was a problem saving the subject. Please try again.",
+                description: error instanceof Error ? error.message : "There was a problem saving the topic. Please try again.",
             })
         } finally {
             setIsLoading(false)
@@ -107,9 +140,40 @@ export function SubjectForm({ subject, onSuccess, mode = "create" }: SubjectForm
                             <FormItem>
                                 <FormLabel className="text-base">Name</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="Enter subject name" {...field} disabled={isReadOnly} className="rounded-xl" />
+                                    <Input placeholder="Enter topic name" {...field} disabled={isReadOnly} className="rounded-xl" />
                                 </FormControl>
-                                <FormDescription>The name of the subject.</FormDescription>
+                                <FormDescription>The name of the topic.</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
+                    <FormField
+                        control={form.control}
+                        name="subject_id"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-base">Subject</FormLabel>
+                                <Select
+                                    disabled={isReadOnly || isLoadingSubjects || !!subjectId}
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                    value={field.value}
+                                >
+                                    <FormControl>
+                                        <SelectTrigger className="rounded-xl">
+                                            <SelectValue placeholder={isLoadingSubjects ? "Loading subjects..." : "Select a subject"} />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {subjects.map((subject) => (
+                                            <SelectItem key={subject.id} value={subject.id}>
+                                                {subject.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormDescription>The subject this topic belongs to.</FormDescription>
                                 <FormMessage />
                             </FormItem>
                         )}
@@ -130,7 +194,7 @@ export function SubjectForm({ subject, onSuccess, mode = "create" }: SubjectForm
                                         disabled={isReadOnly}
                                     />
                                 </FormControl>
-                                <FormDescription>A brief description of the subject.</FormDescription>
+                                <FormDescription>A brief description of the topic.</FormDescription>
                                 <FormMessage />
                             </FormItem>
                         )}
@@ -151,14 +215,14 @@ export function SubjectForm({ subject, onSuccess, mode = "create" }: SubjectForm
                                                         <HelpCircle className="h-4 w-4 text-muted-foreground" />
                                                     </TooltipTrigger>
                                                     <TooltipContent className="max-w-[300px]">
-                                                        Active subjects are visible to users and can be associated with topics and questions.
-                                                        Inactive subjects are hidden from users but preserved in the database.
+                                                        Active topics are visible to users and can be associated with subtopics and questions.
+                                                        Inactive topics are hidden from users but preserved in the database.
                                                     </TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
                                         </div>
                                         <FormDescription>
-                                            Determine whether this subject is active and visible in the application.
+                                            Determine whether this topic is active and visible in the application.
                                         </FormDescription>
                                     </div>
                                     <FormControl>
@@ -187,13 +251,13 @@ export function SubjectForm({ subject, onSuccess, mode = "create" }: SubjectForm
                                                         <HelpCircle className="h-4 w-4 text-muted-foreground" />
                                                     </TooltipTrigger>
                                                     <TooltipContent className="max-w-[300px]">
-                                                        Shelved subjects are hidden from the main view but can be accessed when needed. This helps
+                                                        Shelved topics are hidden from the main view but can be accessed when needed. This helps
                                                         declutter your workspace without deleting valuable content.
                                                     </TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
                                         </div>
-                                        <FormDescription>Move this subject to the shelf to hide it from the main view.</FormDescription>
+                                        <FormDescription>Move this topic to the shelf to hide it from the main view.</FormDescription>
                                     </div>
                                     <FormControl>
                                         <div className="flex items-center gap-2">
@@ -228,7 +292,7 @@ export function SubjectForm({ subject, onSuccess, mode = "create" }: SubjectForm
                         ) : (
                             <>
                                 <Save className="h-4 w-4" />
-                                {mode === "edit" ? "Save Changes" : "Save Subject"}
+                                {mode === "edit" ? "Save Changes" : "Save Topic"}
                             </>
                         )}
                     </Button>

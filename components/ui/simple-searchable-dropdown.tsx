@@ -5,6 +5,7 @@ import { Check, ChevronDown, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 export interface Option {
     value: string
@@ -54,7 +55,6 @@ export function SimpleSearchableDropdown({
 
     // Handle option selection
     const handleSelect = (option: Option) => {
-        console.log("Selected option:", option)
         onValueChange(option.value)
         setIsOpen(false)
         setSearchQuery("")
@@ -62,16 +62,29 @@ export function SimpleSearchableDropdown({
 
     return (
         <div className={cn("relative w-full", className)} ref={dropdownRef}>
-            <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-between"
-                onClick={() => !disabled && setIsOpen(!isOpen)}
-                disabled={disabled}
-            >
-                {selectedOption ? selectedOption.label : placeholder}
-                <ChevronDown className={cn("ml-2 h-4 w-4 shrink-0 opacity-50", isOpen && "rotate-180 transform")} />
-            </Button>
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full justify-between text-ellipsis overflow-hidden whitespace-nowrap"
+                            onClick={() => !disabled && setIsOpen(!isOpen)}
+                            disabled={disabled}
+                        >
+                            <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
+                            <ChevronDown
+                                className={cn("ml-2 h-4 w-4 shrink-0 opacity-50 flex-none", isOpen && "rotate-180 transform")}
+                            />
+                        </Button>
+                    </TooltipTrigger>
+                    {selectedOption && (
+                        <TooltipContent side="bottom" className="max-w-[300px] break-words">
+                            {selectedOption.label}
+                        </TooltipContent>
+                    )}
+                </Tooltip>
+            </TooltipProvider>
 
             {isOpen && (
                 <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg">
@@ -89,18 +102,28 @@ export function SimpleSearchableDropdown({
                             <div className="py-6 text-center text-sm">No results found.</div>
                         ) : (
                             filteredOptions.map((option) => (
-                                <div
-                                    key={option.value}
-                                    className={cn(
-                                        "flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm",
-                                        "hover:bg-accent hover:text-accent-foreground",
-                                        value === option.value && "bg-accent text-accent-foreground",
-                                    )}
-                                    onClick={() => handleSelect(option)}
-                                >
-                                    <Check className={cn("mr-2 h-4 w-4", value === option.value ? "opacity-100" : "opacity-0")} />
-                                    {option.label}
-                                </div>
+                                <TooltipProvider key={option.value}>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div
+                                                className={cn(
+                                                    "flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm",
+                                                    "hover:bg-accent hover:text-accent-foreground",
+                                                    value === option.value && "bg-accent text-accent-foreground",
+                                                )}
+                                                onClick={() => handleSelect(option)}
+                                            >
+                                                <Check
+                                                    className={cn("mr-2 h-4 w-4 flex-none", value === option.value ? "opacity-100" : "opacity-0")}
+                                                />
+                                                <span className="truncate">{option.label}</span>
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right" className="max-w-[300px] break-words">
+                                            {option.label}
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             ))
                         )}
                     </div>

@@ -1,5 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton"
-import { BookOpen } from "lucide-react"
+import { Layers } from "lucide-react"
 
 export default function Loading() {
     return (
@@ -18,7 +18,7 @@ export default function Loading() {
                 <div className="rounded-2xl border shadow-sm overflow-hidden">
                     <div className="p-6">
                         <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                            <BookOpen className="h-12 w-12 mb-4 opacity-20" />
+                            <Layers className="h-12 w-12 mb-4 opacity-20" />
                             <div className="text-center space-y-2">
                                 <Skeleton className="h-5 w-[180px] mx-auto" />
                                 <Skeleton className="h-4 w-[240px] mx-auto" />

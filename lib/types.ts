@@ -4,19 +4,22 @@ export interface Subject {
     name: string
     description: string | null
     is_active: boolean
+    is_shelved: boolean
     is_deleted: boolean
     created_at: string
     modified_at: string
+    topics?: Topic[]
 }
 
-// Existing Location type (for reference)
-export interface Location {
+export interface Topic {
     id: string
     name: string
-    type: string
-    address: string | null
-    postal_code: string | null
-    country: string
-    created_at: string
-    updated_at: string
+    subject_id: string
+    subtopics: SubTopic[]
+}
+
+export interface SubTopic {
+    id: string
+    name: string
+    topic_id: string
 }

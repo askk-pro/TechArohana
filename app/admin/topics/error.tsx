@@ -26,7 +26,7 @@ export default function Error({
                 </div>
                 <h2 className="text-2xl font-bold tracking-tight">Something went wrong!</h2>
                 <p className="text-muted-foreground max-w-md">
-                    There was an error loading the subjects. Please try again or contact support if the problem persists.
+                    There was an error loading the topics. Please try again or contact support if the problem persists.
                 </p>
             </div>
             <Button onClick={() => reset()} className="gap-1.5 rounded-xl">

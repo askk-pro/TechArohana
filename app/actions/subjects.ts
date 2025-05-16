@@ -1,20 +1,20 @@
 "use server"
 
-import { subjectSchema } from "@/lib/schemas/subject-schema"
 import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
-
-// Remove type exports from this file
+import { subjectSchema } from "@/lib/schemas/subject-schema"
 
 // Get all subjects with pagination and search
 export async function getSubjects({
     page = 1,
     pageSize = 10,
     search = "",
+    showShelved = false,
 }: {
     page?: number
     pageSize?: number
     search?: string
+    showShelved?: boolean
 }) {
     const supabase = await createClient()
 
@@ -33,6 +33,11 @@ export async function getSubjects({
     // Add search if provided
     if (search) {
         query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
+    }
+
+    // Filter by shelved status if not showing shelved
+    if (!showShelved) {
+        query = query.eq("is_shelved", false)
     }
 
     // Execute the query
@@ -101,6 +106,26 @@ export async function updateSubject(id: string, formData: any) {
 
     if (error) {
         console.error("Error updating subject:", error)
+        return { error: "Failed to update subject" }
+    }
+
+    revalidatePath("/admin/subjects")
+    return { data }
+}
+
+// Toggle shelved status
+export async function toggleSubjectShelved(id: string, isShelved: boolean) {
+    const supabase = await createClient()
+
+    const { data, error } = await supabase
+        .from("subjects")
+        .update({ is_shelved: isShelved })
+        .eq("id", id)
+        .select()
+        .single()
+
+    if (error) {
+        console.error("Error toggling subject shelved status:", error)
         return { error: "Failed to update subject" }
     }
 

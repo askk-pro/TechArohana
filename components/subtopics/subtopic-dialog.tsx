@@ -2,8 +2,7 @@
 
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { SubjectForm } from "@/components/subjects/subject-form"
-import type { Subject } from "@/lib/types"
+import { SubtopicForm } from "@/components/subtopics/subtopic-form"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
@@ -19,31 +18,32 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { deleteSubject } from "@/app/actions/subjects"
+import { deleteSubtopic } from "@/app/actions/subtopics"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 
-interface SubjectDialogProps {
+interface SubtopicDialogProps {
     mode: "create" | "edit" | "details"
-    subject?: Subject
+    subtopic?: any
     isOpen: boolean
     onClose: () => void
+    topicId?: string
 }
 
-export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogProps) {
+export function SubtopicDialog({ mode, subtopic, isOpen, onClose, topicId }: SubtopicDialogProps) {
     const router = useRouter()
     const { toast } = useToast()
     const [isLoading, setIsLoading] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
     const handleDelete = async () => {
-        if (!subject) return
+        if (!subtopic) return
 
         setIsLoading(true)
 
         try {
             // Use soft delete by default
-            const result = await deleteSubject(subject.id)
+            const result = await deleteSubtopic(subtopic.id)
 
             if (result.error) {
                 throw new Error(result.error)
@@ -51,7 +51,7 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
 
             toast({
                 title: "Success",
-                description: "Subject deleted successfully.",
+                description: "Subtopic deleted successfully.",
             })
             router.refresh()
             onClose()
@@ -59,7 +59,7 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
             toast({
                 variant: "destructive",
                 title: "Error",
-                description: error instanceof Error ? error.message : "Failed to delete subject. Please try again.",
+                description: error instanceof Error ? error.message : "Failed to delete subtopic. Please try again.",
             })
         } finally {
             setIsLoading(false)
@@ -75,25 +75,25 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
         })
     }
 
-    // Generate a consistent emoji based on the subject name
-    const getSubjectEmoji = (name: string) => {
+    // Generate a consistent emoji based on the subtopic name
+    const getSubtopicEmoji = (name: string) => {
         const emojiList = ["📚", "🧠", "💻", "🔍", "🧮", "🧪", "📊", "📝", "🔬", "🧩"]
         const hash = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
         return emojiList[hash % emojiList.length]
     }
 
     const renderContent = () => {
-        if (mode === "details" && subject) {
+        if (mode === "details" && subtopic) {
             return (
                 <Card className="border-0 shadow-none">
                     <CardHeader className="px-0 pt-0">
                         <div className="flex items-center gap-3">
                             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-2xl">
-                                {getSubjectEmoji(subject.name)}
+                                {getSubtopicEmoji(subtopic.name)}
                             </div>
                             <div>
-                                <CardTitle className="text-2xl tracking-tight">{subject.name}</CardTitle>
-                                {subject.is_shelved && (
+                                <CardTitle className="text-2xl tracking-tight">{subtopic.name}</CardTitle>
+                                {subtopic.is_shelved && (
                                     <Badge variant="outline" className="text-muted-foreground mt-1">
                                         <Archive className="h-3 w-3 mr-1" /> Shelved
                                     </Badge>
@@ -104,8 +104,20 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
                     <CardContent className="px-0 space-y-6">
                         <div className="grid gap-4">
                             <div className="space-y-2">
+                                <h3 className="text-sm font-medium text-muted-foreground">Topic</h3>
+                                <p className="text-base font-medium">{subtopic.topics?.name || "Unknown Topic"}</p>
+                                <Separator className="my-2" />
+                            </div>
+
+                            <div className="space-y-2">
+                                <h3 className="text-sm font-medium text-muted-foreground">Subject</h3>
+                                <p className="text-base font-medium">{subtopic.topics?.subjects?.name || "Unknown Subject"}</p>
+                                <Separator className="my-2" />
+                            </div>
+
+                            <div className="space-y-2">
                                 <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
-                                <p className="text-base">{subject.description || "No description provided"}</p>
+                                <p className="text-base">{subtopic.description || "No description provided"}</p>
                                 <Separator className="my-2" />
                             </div>
 
@@ -113,7 +125,7 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
                                 <div className="space-y-2">
                                     <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
                                     <div className="flex items-center gap-2">
-                                        {subject.is_active ? (
+                                        {subtopic.is_active ? (
                                             <>
                                                 <CheckCircle className="h-5 w-5 text-green-500" />
                                                 <span>Active</span>
@@ -130,7 +142,7 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
                                 <div className="space-y-2">
                                     <h3 className="text-sm font-medium text-muted-foreground">Shelved</h3>
                                     <div className="flex items-center gap-2">
-                                        {subject.is_shelved ? (
+                                        {subtopic.is_shelved ? (
                                             <>
                                                 <Archive className="h-5 w-5 text-amber-500" />
                                                 <span>Shelved</span>
@@ -148,7 +160,7 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
                                     <h3 className="text-sm font-medium text-muted-foreground">Created</h3>
                                     <div className="flex items-center gap-2">
                                         <Calendar className="h-5 w-5 text-muted-foreground" />
-                                        <span>{formatDate(subject.created_at)}</span>
+                                        <span>{formatDate(subtopic.created_at)}</span>
                                     </div>
                                 </div>
 
@@ -156,7 +168,7 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
                                     <h3 className="text-sm font-medium text-muted-foreground">Last Updated</h3>
                                     <div className="flex items-center gap-2">
                                         <Calendar className="h-5 w-5 text-muted-foreground" />
-                                        <span>{formatDate(subject.modified_at)}</span>
+                                        <span>{formatDate(subtopic.modified_at)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -166,7 +178,7 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
                             <Button variant="outline" onClick={onClose} className="rounded-xl">
                                 Close
                             </Button>
-                            <Button variant="outline" onClick={() => openDialog("edit", subject)} className="rounded-xl gap-1.5">
+                            <Button variant="outline" onClick={() => openDialog("edit", subtopic)} className="rounded-xl gap-1.5">
                                 Edit
                             </Button>
                             <Button
@@ -184,22 +196,22 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
             )
         }
 
-        return <SubjectForm subject={subject} onSuccess={onClose} mode={mode} />
+        return <SubtopicForm subtopic={subtopic} onSuccess={onClose} mode={mode} topicId={topicId} />
     }
 
     const title = {
-        create: "Add New Subject",
-        edit: "Edit Subject",
-        details: "Subject Details",
+        create: "Add New Subtopic",
+        edit: "Edit Subtopic",
+        details: "Subtopic Details",
     }
 
-    const openDialog = (mode: "edit", subject: Subject) => {
+    const openDialog = (mode: "edit", subtopic: any) => {
         onClose()
         setTimeout(() => {
             setDialogState({
                 isOpen: true,
                 mode,
-                subject,
+                subtopic,
             })
         }, 100)
     }
@@ -207,7 +219,7 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
     const [dialogState, setDialogState] = useState<{
         isOpen: boolean
         mode: "create" | "edit" | "details"
-        subject?: Subject
+        subtopic?: any
     }>({
         isOpen: false,
         mode: "create",
@@ -232,8 +244,8 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
                     <DialogHeader>
                         <DialogTitle className="text-xl">{title[dialogState.mode]}</DialogTitle>
                     </DialogHeader>
-                    <SubjectForm
-                        subject={dialogState.subject}
+                    <SubtopicForm
+                        subtopic={dialogState.subtopic}
                         onSuccess={() => setDialogState({ ...dialogState, isOpen: false })}
                         mode={dialogState.mode}
                     />
@@ -243,9 +255,9 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
             <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
                 <AlertDialogContent className="rounded-2xl">
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure you want to delete this subject?</AlertDialogTitle>
+                        <AlertDialogTitle>Are you sure you want to delete this subtopic?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the subject "{subject?.name}" and remove it
+                            This action cannot be undone. This will permanently delete the subtopic "{subtopic?.name}" and remove it
                             from our servers.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
