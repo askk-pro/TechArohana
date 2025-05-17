@@ -1,16 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Archive, Calendar, CheckCircle, Code, Edit, Eye, Layers3, XCircle } from "lucide-react"
+import { Archive, Calendar, CheckCircle, Code, Edit, Eye, Layers3, XCircle, Clock } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { SubjectDialog } from "@/components/subjects/subject-dialog"
 import { CopyButton } from "@/components/ui/copy-button"
 import { useToast } from "@/hooks/use-toast"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { getSubjectCounts } from "@/app/actions/subjects"
 
 interface SubjectDetailsProps {
     subject: any
@@ -25,6 +27,32 @@ export function SubjectDetails({ subject }: SubjectDetailsProps) {
         mode: "details",
     })
     const { toast } = useToast()
+    const [counts, setCounts] = useState({ topicCount: 0, subtopicCount: 0 })
+    const [isLoadingCounts, setIsLoadingCounts] = useState(false)
+
+    // Fetch topic and subtopic counts on component mount
+    useEffect(() => {
+        const fetchCounts = async () => {
+            if (subject?.id) {
+                setIsLoadingCounts(true)
+                try {
+                    const result = await getSubjectCounts(subject.id)
+                    if (!result.error) {
+                        setCounts({
+                            topicCount: result.topicCount ?? 0,
+                            subtopicCount: result.subtopicCount ?? 0,
+                        })
+                    }
+                } catch (error) {
+                    console.error("Error fetching counts:", error)
+                } finally {
+                    setIsLoadingCounts(false)
+                }
+            }
+        }
+
+        fetchCounts()
+    }, [subject])
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString("en-US", {
@@ -32,6 +60,30 @@ export function SubjectDetails({ subject }: SubjectDetailsProps) {
             month: "long",
             day: "numeric",
         })
+    }
+
+    // Format relative time (e.g., "2 days ago")
+    const formatRelativeTime = (dateString: string) => {
+        const date = new Date(dateString)
+        const now = new Date()
+        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+        if (diffInSeconds < 60) return "just now"
+
+        const diffInMinutes = Math.floor(diffInSeconds / 60)
+        if (diffInMinutes < 60) return `${diffInMinutes} minute${diffInMinutes > 1 ? "s" : ""} ago`
+
+        const diffInHours = Math.floor(diffInMinutes / 60)
+        if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`
+
+        const diffInDays = Math.floor(diffInHours / 24)
+        if (diffInDays < 30) return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`
+
+        const diffInMonths = Math.floor(diffInDays / 30)
+        if (diffInMonths < 12) return `${diffInMonths} month${diffInMonths > 1 ? "s" : ""} ago`
+
+        const diffInYears = Math.floor(diffInMonths / 12)
+        return `${diffInYears} year${diffInYears > 1 ? "s" : ""} ago`
     }
 
     const handleCopy = () => {
@@ -46,7 +98,7 @@ export function SubjectDetails({ subject }: SubjectDetailsProps) {
             <Tabs defaultValue="overview" className="w-full">
                 <TabsList>
                     <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="topics">Topics</TabsTrigger>
+                    <TabsTrigger value="topics">Topics ({isLoadingCounts ? "..." : counts.topicCount})</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview" className="space-y-4 mt-4">
@@ -64,18 +116,58 @@ export function SubjectDetails({ subject }: SubjectDetailsProps) {
                                         <Edit className="h-4 w-4" />
                                         Edit
                                     </Button>
-                                    <div className="group relative">
-                                        <CopyButton
-                                            value={`Subject - ${subject.name}\nDescription - ${subject.description || "N/A"}`}
-                                            onCopied={handleCopy}
-                                            className="opacity-100"
-                                        />
-                                    </div>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className="group relative">
+                                                    <CopyButton
+                                                        value={`Subject - ${subject.name}\nDescription - ${subject.description || "N/A"}`}
+                                                        onCopied={handleCopy}
+                                                        className="opacity-100"
+                                                    />
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>Copy subject details</TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
                                 </div>
                             </div>
                             <CardDescription>Details about the subject</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
+                            {/* Summary section */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <Card className="bg-muted/30">
+                                    <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+                                        <Badge variant={subject.is_active ? "success" : "destructive"} className="mb-2">
+                                            {subject.is_active ? "Active" : "Inactive"}
+                                        </Badge>
+                                        <p className="text-sm text-muted-foreground">Status</p>
+                                    </CardContent>
+                                </Card>
+                                <Card className="bg-muted/30">
+                                    <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+                                        <div className="text-xl font-bold mb-1">{isLoadingCounts ? "..." : counts.topicCount}</div>
+                                        <p className="text-sm text-muted-foreground">Topics</p>
+                                    </CardContent>
+                                </Card>
+                                <Card className="bg-muted/30">
+                                    <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+                                        <div className="text-xl font-bold mb-1">{isLoadingCounts ? "..." : counts.subtopicCount}</div>
+                                        <p className="text-sm text-muted-foreground">Subtopics</p>
+                                    </CardContent>
+                                </Card>
+                                <Card className="bg-muted/30">
+                                    <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+                                        <div className="flex items-center gap-1 mb-1">
+                                            <Clock className="h-4 w-4 text-muted-foreground" />
+                                            <span className="text-sm">{formatRelativeTime(subject.modified_at)}</span>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">Last Updated</p>
+                                    </CardContent>
+                                </Card>
+                            </div>
+
                             <div className="grid gap-4">
                                 <div className="space-y-2">
                                     <h3 className="text-sm font-medium text-muted-foreground">Name</h3>
@@ -128,7 +220,10 @@ export function SubjectDetails({ subject }: SubjectDetailsProps) {
                                         <h3 className="text-sm font-medium text-muted-foreground">Created</h3>
                                         <div className="flex items-center gap-2">
                                             <Calendar className="h-5 w-5 text-muted-foreground" />
-                                            <span>{formatDate(subject.created_at)}</span>
+                                            <div>
+                                                <div>{formatDate(subject.created_at)}</div>
+                                                <div className="text-xs text-muted-foreground">{formatRelativeTime(subject.created_at)}</div>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -136,12 +231,23 @@ export function SubjectDetails({ subject }: SubjectDetailsProps) {
                                         <h3 className="text-sm font-medium text-muted-foreground">Last Updated</h3>
                                         <div className="flex items-center gap-2">
                                             <Calendar className="h-5 w-5 text-muted-foreground" />
-                                            <span>{formatDate(subject.modified_at)}</span>
+                                            <div>
+                                                <div>{formatDate(subject.modified_at)}</div>
+                                                <div className="text-xs text-muted-foreground">{formatRelativeTime(subject.modified_at)}</div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </CardContent>
+                        <CardFooter className="border-t pt-4 flex justify-end">
+                            <Button asChild variant="outline" size="sm" className="gap-1.5">
+                                <Link href={`/admin/topics?subject_id=${subject.id}`}>
+                                    <Layers3 className="h-4 w-4" />
+                                    Manage Topics
+                                </Link>
+                            </Button>
+                        </CardFooter>
                     </Card>
                 </TabsContent>
 
@@ -150,12 +256,20 @@ export function SubjectDetails({ subject }: SubjectDetailsProps) {
                         <CardHeader className="pb-2">
                             <div className="flex items-center justify-between">
                                 <CardTitle>Topics in this Subject</CardTitle>
-                                <Button asChild variant="outline" size="sm" className="gap-1.5">
-                                    <Link href={`/admin/topics?subject_id=${subject.id}`}>
-                                        <Eye className="h-4 w-4" />
-                                        View All
-                                    </Link>
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button asChild variant="outline" size="sm" className="gap-1.5">
+                                        <Link href={`/admin/topics?subject_id=${subject.id}`}>
+                                            <Eye className="h-4 w-4" />
+                                            View All
+                                        </Link>
+                                    </Button>
+                                    <Button asChild variant="default" size="sm" className="gap-1.5">
+                                        <Link href={`/admin/topics/new?subject_id=${subject.id}`}>
+                                            <Code className="h-4 w-4" />
+                                            Add Topic
+                                        </Link>
+                                    </Button>
+                                </div>
                             </div>
                             <CardDescription>Topics associated with {subject.name}</CardDescription>
                         </CardHeader>
@@ -181,7 +295,7 @@ export function SubjectDetails({ subject }: SubjectDetailsProps) {
                                                 <Badge variant={topic.is_active ? "success" : "destructive"}>
                                                     {topic.is_active ? "Active" : "Inactive"}
                                                 </Badge>
-                                                {topic.subtopics_count && (
+                                                {topic.subtopics_count !== undefined && (
                                                     <Badge variant="outline" className="flex items-center gap-1">
                                                         <Layers3 className="h-3 w-3" />
                                                         {topic.subtopics_count} subtopics

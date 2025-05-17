@@ -25,7 +25,7 @@ export async function getSubjects({
     // Build the query
     let query = supabase
         .from("subjects")
-        .select("*", { count: "exact" })
+        .select("*, topics:topics(count)", { count: "exact" })
         .eq("is_deleted", false)
         .range(from, to)
         .order("created_at", { ascending: false })
@@ -55,18 +55,104 @@ export async function getSubjects({
     }
 }
 
-// Get a single subject by ID
+// Get a single subject by ID with related topics and subtopic counts
 export async function getSubjectById(id: string) {
     const supabase = await createClient()
 
-    const { data, error } = await supabase.from("subjects").select("*").eq("id", id).eq("is_deleted", false).single()
+    // First get the subject with its topics
+    const { data: subject, error: subjectError } = await supabase
+        .from("subjects")
+        .select(`
+      *,
+      topics:topics(
+        id, 
+        name, 
+        is_active, 
+        is_shelved
+      )
+    `)
+        .eq("id", id)
+        .eq("is_deleted", false)
+        .single()
 
-    if (error) {
-        console.error("Error fetching subject:", error)
+    if (subjectError) {
+        console.error("Error fetching subject:", subjectError)
         throw new Error("Failed to fetch subject")
     }
 
-    return data
+    // If we have topics, get the subtopic counts for each topic
+    if (subject && subject.topics && subject.topics.length > 0) {
+        // Get all topic IDs
+        const topicIds = subject.topics.map((topic: any) => topic.id)
+
+        // Get subtopic counts for each topic individually
+        const subtopicCounts = []
+        const countMap: Record<string, number> = {}
+
+        // Create a map of topic_id to count
+        for (const topicId of topicIds) {
+            const { count, error } = await supabase
+                .from("sub_topics")
+                .select("*", { count: "exact" })
+                .eq("topic_id", topicId)
+                .eq("is_deleted", false)
+
+            if (!error && count !== null) {
+                countMap[topicId] = count
+                subtopicCounts.push({ topic_id: topicId, count })
+            }
+        }
+
+        // Add the subtopic count to each topic
+        subject.topics = subject.topics.map((topic: any) => ({
+            ...topic,
+            subtopics_count: countMap[topic.id] || 0,
+        }))
+    }
+
+    // Get total topic count
+    const { count: topicCount, error: topicCountError } = await supabase
+        .from("topics")
+        .select("*", { count: "exact" })
+        .eq("subject_id", id)
+        .eq("is_deleted", false)
+
+    if (!topicCountError) {
+        subject.topic_count = topicCount
+    }
+
+    // First get all topic IDs for this subject
+    const { data: topicIdsData, error: topicIdsError } = await supabase
+        .from("topics")
+        .select("id")
+        .eq("subject_id", id)
+        .eq("is_deleted", false)
+
+    let subtopicCount = 0
+    let subtopicCountError = null
+
+    if (!topicIdsError && topicIdsData) {
+        // Extract the topic IDs
+        const subjectTopicIds = topicIdsData.map((topic) => topic.id)
+
+        // If we have topic IDs, count the subtopics
+        if (subjectTopicIds.length > 0) {
+            const { count, error } = await supabase
+                .from("sub_topics")
+                .select("*", { count: "exact" })
+                .in("topic_id", subjectTopicIds)
+                .eq("is_deleted", false)
+
+            subtopicCount = count || 0
+            subtopicCountError = error
+        }
+    }
+
+    if (!subtopicCountError) {
+        subject.subtopic_count = subtopicCount
+    }
+
+    return subject
 }
 
 // Create a new subject
@@ -110,6 +196,7 @@ export async function updateSubject(id: string, formData: any) {
     }
 
     revalidatePath("/admin/subjects")
+    revalidatePath(`/admin/subjects/${id}`)
     return { data }
 }
 
@@ -161,4 +248,58 @@ export async function hardDeleteSubject(id: string) {
 
     revalidatePath("/admin/subjects")
     return { success: true }
+}
+
+// Get topic and subtopic counts for a subject
+export async function getSubjectCounts(id: string) {
+    const supabase = await createClient()
+
+    // Get topic count
+    const { count: topicCount, error: topicError } = await supabase
+        .from("topics")
+        .select("*", { count: "exact" })
+        .eq("subject_id", id)
+        .eq("is_deleted", false)
+
+    if (topicError) {
+        console.error("Error fetching topic count:", topicError)
+        return { error: "Failed to fetch topic count" }
+    }
+
+    // First get all topic IDs for this subject
+    const { data: topicIdsData, error: topicIdsError } = await supabase
+        .from("topics")
+        .select("id")
+        .eq("subject_id", id)
+        .eq("is_deleted", false)
+
+    let subtopicCount = 0
+    let subtopicError = null
+
+    if (!topicIdsError && topicIdsData) {
+        // Extract the topic IDs
+        const subjectTopicIds = topicIdsData.map((topic) => topic.id)
+
+        // If we have topic IDs, count the subtopics
+        if (subjectTopicIds.length > 0) {
+            const { count, error } = await supabase
+                .from("sub_topics")
+                .select("*", { count: "exact" })
+                .in("topic_id", subjectTopicIds)
+                .eq("is_deleted", false)
+
+            subtopicCount = count || 0
+            subtopicError = error
+        }
+    }
+
+    if (subtopicError) {
+        console.error("Error fetching subtopic count:", subtopicError)
+        return { error: "Failed to fetch subtopic count" }
+    }
+
+    return {
+        topicCount: topicCount || 0,
+        subtopicCount: subtopicCount || 0,
+    }
 }

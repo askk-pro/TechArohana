@@ -87,7 +87,7 @@ export function TopicDetails({ topic }: TopicDetailsProps) {
                                     <h3 className="text-sm font-medium text-muted-foreground">Subject</h3>
                                     <div className="flex items-center gap-2">
                                         <Link
-                                            href={`/admin/subjects/${topic.subject_id}`}
+                                            href={`/subjects/${topic.subject_id}`}
                                             className="text-base font-medium hover:underline flex items-center gap-1"
                                         >
                                             <Layers className="h-4 w-4" />
@@ -165,7 +165,7 @@ export function TopicDetails({ topic }: TopicDetailsProps) {
                             <div className="flex items-center justify-between">
                                 <CardTitle>Subtopics in this Topic</CardTitle>
                                 <Button asChild variant="outline" size="sm" className="gap-1.5">
-                                    <Link href={`/admin/subtopics?topic_id=${topic.id}`}>
+                                    <Link href={`/subjects/${topic.subject_id}/topics/${topic.id}/subtopics`}>
                                         <Eye className="h-4 w-4" />
                                         View All
                                     </Link>
@@ -179,7 +179,7 @@ export function TopicDetails({ topic }: TopicDetailsProps) {
                                     {topic.subtopics.map((subtopic: any) => (
                                         <Link
                                             key={subtopic.id}
-                                            href={`/admin/subtopics/${subtopic.id}`}
+                                            href={`/subjects/${topic.subject_id}/topics/${topic.id}/subtopics/${subtopic.id}`}
                                             className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
                                         >
                                             <div className="flex items-center gap-2">
@@ -201,7 +201,7 @@ export function TopicDetails({ topic }: TopicDetailsProps) {
                                 <div className="text-center py-6 text-muted-foreground">
                                     <p>No subtopics found for this topic.</p>
                                     <Button asChild variant="link" className="mt-2">
-                                        <Link href={`/admin/subtopics/new?topic_id=${topic.id}`}>Add a subtopic</Link>
+                                        <Link href={`/subjects/${topic.subject_id}/topics/${topic.id}/subtopics/new`}>Add a subtopic</Link>
                                     </Button>
                                 </div>
                             )}

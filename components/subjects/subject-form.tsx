@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, type SubmitHandler } from "react-hook-form"
@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Archive, HelpCircle, Save, X } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Separator } from "@/components/ui/separator"
+import { useHotkeys } from "react-hotkeys-hook"
 
 // Define the form schema type explicitly
 type FormValues = SubjectFormValues
@@ -45,6 +46,27 @@ export function SubjectForm({ subject, onSuccess, mode = "create" }: SubjectForm
     })
 
     const isReadOnly = mode === "details"
+
+    // Add keyboard shortcuts
+    useHotkeys(
+        "ctrl+s, cmd+s",
+        (event) => {
+            event.preventDefault()
+            if (!isReadOnly && !isLoading) {
+                form.handleSubmit(onSubmit)()
+            }
+        },
+        { enableOnFormTags: true },
+        [form, isLoading, isReadOnly],
+    )
+
+    useHotkeys(
+        "esc",
+        () => {
+            if (onSuccess) onSuccess()
+        },
+        [onSuccess],
+    )
 
     const onSubmit: SubmitHandler<FormValues> = async (values) => {
         setIsLoading(true)
@@ -96,6 +118,15 @@ export function SubjectForm({ subject, onSuccess, mode = "create" }: SubjectForm
         }
     }
 
+    // Focus the name field on mount
+    useEffect(() => {
+        if (mode !== "details") {
+            setTimeout(() => {
+                form.setFocus("name")
+            }, 100)
+        }
+    }, [form, mode])
+
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -107,9 +138,17 @@ export function SubjectForm({ subject, onSuccess, mode = "create" }: SubjectForm
                             <FormItem>
                                 <FormLabel className="text-base">Name</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="Enter subject name" {...field} disabled={isReadOnly} className="rounded-xl" />
+                                    <Input
+                                        placeholder="Enter subject name"
+                                        {...field}
+                                        disabled={isReadOnly}
+                                        className="rounded-xl"
+                                        aria-required="true"
+                                    />
                                 </FormControl>
-                                <FormDescription>The name of the subject.</FormDescription>
+                                <FormDescription>
+                                    The name of the subject. This will be displayed in the subject list and used for navigation.
+                                </FormDescription>
                                 <FormMessage />
                             </FormItem>
                         )}
@@ -130,7 +169,10 @@ export function SubjectForm({ subject, onSuccess, mode = "create" }: SubjectForm
                                         disabled={isReadOnly}
                                     />
                                 </FormControl>
-                                <FormDescription>A brief description of the subject.</FormDescription>
+                                <FormDescription>
+                                    A brief description of the subject. This helps users understand what topics are covered in this
+                                    subject.
+                                </FormDescription>
                                 <FormMessage />
                             </FormItem>
                         )}
@@ -215,11 +257,22 @@ export function SubjectForm({ subject, onSuccess, mode = "create" }: SubjectForm
                 <Separator />
 
                 <div className="flex gap-2 justify-end">
-                    <Button type="button" variant="outline" onClick={onSuccess} className="gap-1.5 rounded-xl">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onSuccess}
+                        className="gap-1.5 rounded-xl"
+                        aria-label="Cancel"
+                    >
                         <X className="h-4 w-4" />
                         Cancel
                     </Button>
-                    <Button type="submit" disabled={isLoading || isReadOnly} className="gap-1.5 rounded-xl">
+                    <Button
+                        type="submit"
+                        disabled={isLoading || isReadOnly}
+                        className="gap-1.5 rounded-xl"
+                        aria-label={mode === "edit" ? "Save Changes" : "Save Subject"}
+                    >
                         {isLoading ? (
                             <>
                                 <span className="animate-spin">⏳</span>
@@ -233,6 +286,14 @@ export function SubjectForm({ subject, onSuccess, mode = "create" }: SubjectForm
                         )}
                     </Button>
                 </div>
+
+                {!isMobile && (
+                    <div className="text-xs text-muted-foreground text-right mt-2">
+                        <kbd className="px-1.5 py-0.5 border rounded text-xs">Ctrl</kbd> +{" "}
+                        <kbd className="px-1.5 py-0.5 border rounded text-xs">S</kbd> to save •
+                        <kbd className="px-1.5 py-0.5 border rounded text-xs ml-2">Esc</kbd> to cancel
+                    </div>
+                )}
             </form>
         </Form>
     )

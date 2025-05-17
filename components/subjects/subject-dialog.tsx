@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SubjectForm } from "@/components/subjects/subject-form"
 import type { Subject } from "@/lib/types"
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Archive, Calendar, CheckCircle, Trash2, XCircle } from "lucide-react"
+import { Archive, Calendar, CheckCircle, Trash2, XCircle, BookOpen, Layers3 } from "lucide-react"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -19,7 +19,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { deleteSubject } from "@/app/actions/subjects"
+import { deleteSubject, getSubjectCounts } from "@/app/actions/subjects"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 
@@ -28,13 +28,40 @@ interface SubjectDialogProps {
     subject?: Subject
     isOpen: boolean
     onClose: () => void
+    dialogTitle?: string
 }
 
-export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogProps) {
+export function SubjectDialog({ mode, subject, isOpen, onClose, dialogTitle }: SubjectDialogProps) {
     const router = useRouter()
     const { toast } = useToast()
     const [isLoading, setIsLoading] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [counts, setCounts] = useState({ topicCount: 0, subtopicCount: 0 })
+    const [isLoadingCounts, setIsLoadingCounts] = useState(false)
+
+    // Fetch topic and subtopic counts when dialog opens in details mode
+    useEffect(() => {
+        const fetchCounts = async () => {
+            if (isOpen && mode === "details" && subject) {
+                setIsLoadingCounts(true)
+                try {
+                    const result = await getSubjectCounts(subject.id)
+                    if (!result.error) {
+                        setCounts({
+                            topicCount: result.topicCount ?? 0,
+                            subtopicCount: result.subtopicCount ?? 0,
+                        })
+                    }
+                } catch (error) {
+                    console.error("Error fetching counts:", error)
+                } finally {
+                    setIsLoadingCounts(false)
+                }
+            }
+        }
+
+        fetchCounts()
+    }, [isOpen, mode, subject])
 
     const handleDelete = async () => {
         if (!subject) return
@@ -75,6 +102,30 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
         })
     }
 
+    // Format relative time (e.g., "2 days ago")
+    const formatRelativeTime = (dateString: string) => {
+        const date = new Date(dateString)
+        const now = new Date()
+        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+        if (diffInSeconds < 60) return "just now"
+
+        const diffInMinutes = Math.floor(diffInSeconds / 60)
+        if (diffInMinutes < 60) return `${diffInMinutes} minute${diffInMinutes > 1 ? "s" : ""} ago`
+
+        const diffInHours = Math.floor(diffInMinutes / 60)
+        if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`
+
+        const diffInDays = Math.floor(diffInHours / 24)
+        if (diffInDays < 30) return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`
+
+        const diffInMonths = Math.floor(diffInDays / 30)
+        if (diffInMonths < 12) return `${diffInMonths} month${diffInMonths > 1 ? "s" : ""} ago`
+
+        const diffInYears = Math.floor(diffInMonths / 12)
+        return `${diffInYears} year${diffInYears > 1 ? "s" : ""} ago`
+    }
+
     // Generate a consistent emoji based on the subject name
     const getSubjectEmoji = (name: string) => {
         const emojiList = ["📚", "🧠", "💻", "🔍", "🧮", "🧪", "📊", "📝", "🔬", "🧩"]
@@ -93,11 +144,24 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
                             </div>
                             <div>
                                 <CardTitle className="text-2xl tracking-tight">{subject.name}</CardTitle>
-                                {subject.is_shelved && (
-                                    <Badge variant="outline" className="text-muted-foreground mt-1">
-                                        <Archive className="h-3 w-3 mr-1" /> Shelved
+                                <div className="flex items-center gap-2 mt-1">
+                                    <Badge variant={subject.is_active ? "success" : "destructive"}>
+                                        {subject.is_active ? "Active" : "Inactive"}
                                     </Badge>
-                                )}
+                                    {subject.is_shelved && (
+                                        <Badge variant="outline" className="text-muted-foreground">
+                                            <Archive className="h-3 w-3 mr-1" /> Shelved
+                                        </Badge>
+                                    )}
+                                    <Badge variant="outline" className="flex items-center gap-1">
+                                        <BookOpen className="h-3 w-3" />
+                                        {isLoadingCounts ? "..." : counts.topicCount} topics
+                                    </Badge>
+                                    <Badge variant="outline" className="flex items-center gap-1">
+                                        <Layers3 className="h-3 w-3" />
+                                        {isLoadingCounts ? "..." : counts.subtopicCount} subtopics
+                                    </Badge>
+                                </div>
                             </div>
                         </div>
                     </CardHeader>
@@ -148,7 +212,10 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
                                     <h3 className="text-sm font-medium text-muted-foreground">Created</h3>
                                     <div className="flex items-center gap-2">
                                         <Calendar className="h-5 w-5 text-muted-foreground" />
-                                        <span>{formatDate(subject.created_at)}</span>
+                                        <div>
+                                            <div>{formatDate(subject.created_at)}</div>
+                                            <div className="text-xs text-muted-foreground">{formatRelativeTime(subject.created_at)}</div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -156,7 +223,10 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
                                     <h3 className="text-sm font-medium text-muted-foreground">Last Updated</h3>
                                     <div className="flex items-center gap-2">
                                         <Calendar className="h-5 w-5 text-muted-foreground" />
-                                        <span>{formatDate(subject.modified_at)}</span>
+                                        <div>
+                                            <div>{formatDate(subject.modified_at)}</div>
+                                            <div className="text-xs text-muted-foreground">{formatRelativeTime(subject.modified_at)}</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -187,10 +257,10 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
         return <SubjectForm subject={subject} onSuccess={onClose} mode={mode} />
     }
 
-    const title = {
-        create: "Add New Subject",
-        edit: "Edit Subject",
-        details: "Subject Details",
+    const titles = {
+        create: dialogTitle || "Add New Subject",
+        edit: dialogTitle || "Edit Subject",
+        details: dialogTitle || "Subject Details",
     }
 
     const openDialog = (mode: "edit", subject: Subject) => {
@@ -213,12 +283,24 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
         mode: "create",
     })
 
+    // Close dialog when ESC is pressed
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && isOpen && !showDeleteConfirm) {
+                onClose()
+            }
+        }
+
+        window.addEventListener("keydown", handleKeyDown)
+        return () => window.removeEventListener("keydown", handleKeyDown)
+    }, [isOpen, showDeleteConfirm, onClose])
+
     return (
         <>
             <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
                 <DialogContent className="sm:max-w-[600px] rounded-2xl">
                     <DialogHeader>
-                        <DialogTitle className="text-xl">{title[mode]}</DialogTitle>
+                        <DialogTitle className="text-xl">{titles[mode]}</DialogTitle>
                     </DialogHeader>
                     {renderContent()}
                 </DialogContent>
@@ -230,7 +312,7 @@ export function SubjectDialog({ mode, subject, isOpen, onClose }: SubjectDialogP
             >
                 <DialogContent className="sm:max-w-[600px] rounded-2xl">
                     <DialogHeader>
-                        <DialogTitle className="text-xl">{title[dialogState.mode]}</DialogTitle>
+                        <DialogTitle className="text-xl">{titles[dialogState.mode]}</DialogTitle>
                     </DialogHeader>
                     <SubjectForm
                         subject={dialogState.subject}

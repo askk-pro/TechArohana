@@ -87,7 +87,7 @@ export function SubtopicDetails({ subtopic }: SubtopicDetailsProps) {
                                     <h3 className="text-sm font-medium text-muted-foreground">Topic</h3>
                                     <div className="flex items-center gap-2">
                                         <Link
-                                            href={`/admin/topics/${subtopic.topic_id}`}
+                                            href={`/subjects/${subtopic.topics?.subject_id}/topics/${subtopic.topic_id}`}
                                             className="text-base font-medium hover:underline flex items-center gap-1"
                                         >
                                             <Code className="h-4 w-4" />
@@ -101,7 +101,7 @@ export function SubtopicDetails({ subtopic }: SubtopicDetailsProps) {
                                     <h3 className="text-sm font-medium text-muted-foreground">Subject</h3>
                                     <div className="flex items-center gap-2">
                                         <Link
-                                            href={`/admin/subjects/${subtopic.topics?.subject_id}`}
+                                            href={`/subjects/${subtopic.topics?.subject_id}`}
                                             className="text-base font-medium hover:underline flex items-center gap-1"
                                         >
                                             <Layers className="h-4 w-4" />
@@ -179,7 +179,9 @@ export function SubtopicDetails({ subtopic }: SubtopicDetailsProps) {
                             <div className="flex items-center justify-between">
                                 <CardTitle>Questions in this Subtopic</CardTitle>
                                 <Button asChild variant="outline" size="sm" className="gap-1.5">
-                                    <Link href={`/admin/questions?subtopic_id=${subtopic.id}`}>
+                                    <Link
+                                        href={`/subjects/${subtopic.topics?.subject_id}/topics/${subtopic.topic_id}/subtopics/${subtopic.id}/questions`}
+                                    >
                                         <FileQuestion className="h-4 w-4" />
                                         View All Questions
                                     </Link>
@@ -212,7 +214,11 @@ export function SubtopicDetails({ subtopic }: SubtopicDetailsProps) {
                                 <div className="text-center py-6 text-muted-foreground">
                                     <p>No questions found for this subtopic.</p>
                                     <Button asChild variant="link" className="mt-2">
-                                        <Link href={`/admin/add-question?subtopic_id=${subtopic.id}`}>Add a question</Link>
+                                        <Link
+                                            href={`/subjects/${subtopic.topics?.subject_id}/topics/${subtopic.topic_id}/subtopics/${subtopic.id}/questions/new`}
+                                        >
+                                            Add a question
+                                        </Link>
                                     </Button>
                                 </div>
                             )}

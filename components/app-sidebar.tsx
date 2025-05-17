@@ -1,47 +1,23 @@
 "use client"
 
-import type React from "react"
-
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import {
-    BookOpen,
-    Code,
-    Database,
-    FileQuestion,
-    Home,
-    Layers,
-    Plus,
-    Search,
-    Settings,
-    Sparkles,
-    ChevronDown,
-    ChevronsUp,
-    ChevronsDown,
-    Layers3,
+    BookOpen, Code, Database, FileQuestion, Home, Layers, Plus,
+    Search, Settings, Sparkles, ChevronDown, ChevronUp, LayoutPanelTop
 } from "lucide-react"
 import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarGroup,
-    SidebarGroupContent,
-    SidebarGroupLabel,
-    SidebarHeader,
-    SidebarInput,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
-    SidebarRail,
-    SidebarTrigger,
+    Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
+    SidebarGroupLabel, SidebarHeader, SidebarInput, SidebarMenu, SidebarMenuButton,
+    SidebarMenuItem, SidebarRail, SidebarTrigger
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { createClient } from "@/utils/supabase/client"
 import { Switch } from "@/components/ui/switch"
+import { Subject } from "@/lib/types"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import type { Subject } from "@/lib/types"
 
 export function AppSidebar() {
     const [subjects, setSubjects] = useState<Subject[]>([])
@@ -49,55 +25,49 @@ export function AppSidebar() {
     const [openTopics, setOpenTopics] = useState<Record<string, boolean>>({})
     const [searchTerm, setSearchTerm] = useState("")
     const [showShelved, setShowShelved] = useState(false)
+    const [subjectsVisible, setSubjectsVisible] = useState(true)
 
     const supabase = createClient()
 
-    const toggleSubject = (id: string, e?: React.MouseEvent) => {
-        // If event exists, stop propagation to prevent navigation when clicking the chevron
-        if (e) {
-            e.stopPropagation()
+    const toggleSubject = (id: string) => {
+        const newState = { ...openSubjects, [id]: !openSubjects[id] }
+        setOpenSubjects(newState)
+        localStorage.setItem("openSubjects", JSON.stringify(newState))
+    }
+
+    const toggleTopic = (id: string) => {
+        const newState = { ...openTopics, [id]: !openTopics[id] }
+        setOpenTopics(newState)
+        localStorage.setItem("openTopics", JSON.stringify(newState))
+    }
+
+    const toggleSubjectsVisibility = () => {
+        setSubjectsVisible(prev => !prev)
+        localStorage.setItem("subjectsVisible", JSON.stringify(!subjectsVisible))
+        // Clear openTopics when collapsing all
+        if (!subjectsVisible) {
+            setOpenTopics({})
+            localStorage.removeItem("openTopics")
         }
-        setOpenSubjects((prev) => ({ ...prev, [id]: !prev[id] }))
-    }
-
-    const toggleTopic = (id: string, e?: React.MouseEvent) => {
-        if (e) {
-            e.stopPropagation()
-        }
-        setOpenTopics((prev) => ({ ...prev, [id]: !prev[id] }))
-    }
-
-    // Function to collapse all subjects
-    const collapseAll = () => {
-        setOpenSubjects({})
-        setOpenTopics({})
-    }
-
-    // Function to expand all subjects
-    const expandAll = () => {
-        const allSubjectsOpen: Record<string, boolean> = {}
-        const allTopicsOpen: Record<string, boolean> = {}
-
-        subjects.forEach((subject) => {
-            allSubjectsOpen[subject.id] = true
-            subject.topics?.forEach((topic) => {
-                allTopicsOpen[topic.id] = true
-            })
-        })
-
-        setOpenSubjects(allSubjectsOpen)
-        setOpenTopics(allTopicsOpen)
     }
 
     useEffect(() => {
         async function loadSubjects() {
             const { data, error } = await supabase
                 .from("subjects")
-                .select(`id, name, is_shelved, topics (id, name, subtopics:sub_topics (id, name))`)
+                .select("id, name, is_shelved, topics (id, name, subtopics:sub_topics (id, name))")
             if (!error && data) {
                 setSubjects(data as Subject[])
             }
         }
+
+        const storedSubjects = localStorage.getItem("openSubjects")
+        const storedTopics = localStorage.getItem("openTopics")
+        const storedVisible = localStorage.getItem("subjectsVisible")
+        if (storedSubjects) setOpenSubjects(JSON.parse(storedSubjects))
+        if (storedTopics) setOpenTopics(JSON.parse(storedTopics))
+        if (storedVisible) setSubjectsVisible(JSON.parse(storedVisible))
+
         loadSubjects()
     }, [])
 
@@ -106,94 +76,48 @@ export function AppSidebar() {
     const renderSubjectItem = (subject: Subject) => (
         <Collapsible
             key={subject.id}
-            open={openSubjects[subject.id]}
+            open={openSubjects[subject.id] ?? true}
             onOpenChange={() => toggleSubject(subject.id)}
             className="w-full"
         >
             <SidebarMenuItem>
-                <div className="flex w-full items-center">
-                    <Link
-                        href={`/admin/subjects/${subject.id}`}
-                        className="flex-1 flex items-center py-2 px-3 rounded-md hover:bg-accent"
-                    >
-                        <Layers className="h-4 w-4 mr-2" />
-                        <span className="truncate">{subject.name}</span>
-                    </Link>
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <CollapsibleTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 w-8 p-0"
-                                        onClick={(e) => toggleSubject(subject.id, e)}
-                                    >
-                                        <ChevronDown
-                                            className={`h-4 w-4 transition-transform ${openSubjects[subject.id] ? "rotate-180" : ""}`}
-                                        />
-                                        <span className="sr-only">Toggle topics</span>
-                                    </Button>
-                                </CollapsibleTrigger>
-                            </TooltipTrigger>
-                            <TooltipContent side="right">
-                                {openSubjects[subject.id] ? "Collapse topics" : "Expand topics"}
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                </div>
+                <CollapsibleTrigger asChild>
+                    <SidebarMenuButton className="w-full flex items-center gap-2">
+                        <Layers className="h-4 w-4" />
+                        <span>{subject.name}</span>
+                        <ChevronDown
+                            className={`ml-auto h-4 w-4 transition-transform ${openSubjects[subject.id] ? "rotate-180" : ""}`}
+                        />
+                    </SidebarMenuButton>
+                </CollapsibleTrigger>
             </SidebarMenuItem>
             <CollapsibleContent>
                 {subject.topics?.map((topic) => (
                     <Collapsible
                         key={topic.id}
-                        open={openTopics[topic.id]}
+                        open={openTopics[topic.id] ?? false}
                         onOpenChange={() => toggleTopic(topic.id)}
                         className="ml-4 mt-1"
                     >
                         <SidebarMenuItem>
-                            <div className="flex w-full items-center">
-                                <Link
-                                    href={`/admin/topics/${topic.id}`}
-                                    className="flex-1 flex items-center py-1.5 px-3 rounded-md hover:bg-accent"
-                                >
-                                    <Code className="h-3.5 w-3.5 mr-2" />
-                                    <span className="truncate">{topic.name}</span>
-                                </Link>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <CollapsibleTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 w-7 p-0"
-                                                    onClick={(e) => toggleTopic(topic.id, e)}
-                                                >
-                                                    <ChevronDown
-                                                        className={`h-3.5 w-3.5 transition-transform ${openTopics[topic.id] ? "rotate-180" : ""}`}
-                                                    />
-                                                    <span className="sr-only">Toggle subtopics</span>
-                                                </Button>
-                                            </CollapsibleTrigger>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="right">
-                                            {openTopics[topic.id] ? "Collapse subtopics" : "Expand subtopics"}
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </div>
+                            <CollapsibleTrigger asChild>
+                                <SidebarMenuButton asChild size="sm">
+                                    <Link href={`/topic/${topic.id}`} className="flex items-center gap-1 w-full">
+                                        <Code className="h-3.5 w-3.5" />
+                                        <span>{topic.name}</span>
+                                        <ChevronDown
+                                            className={`ml-auto h-3.5 w-3.5 transition-transform ${openTopics[topic.id] ? "rotate-180" : ""}`}
+                                        />
+                                    </Link>
+                                </SidebarMenuButton>
+                            </CollapsibleTrigger>
                         </SidebarMenuItem>
                         <CollapsibleContent>
                             {topic.subtopics?.map((subtopic) => (
                                 <SidebarMenuItem key={subtopic.id}>
-                                    <Link
-                                        href={`/admin/subtopics/${subtopic.id}`}
-                                        className="ml-4 flex items-center py-1.5 px-3 rounded-md hover:bg-accent w-full"
-                                    >
-                                        <Layers3 className="h-3 w-3 mr-2" />
-                                        <span className="truncate">{subtopic.name}</span>
-                                    </Link>
+                                    <SidebarMenuButton asChild size="sm" className="ml-4">
+                                        <Link href={`/subtopic/${subtopic.id}`}>{subtopic.name}</Link>
+                                    </SidebarMenuButton>
                                 </SidebarMenuItem>
                             ))}
                         </CollapsibleContent>
@@ -210,7 +134,7 @@ export function AppSidebar() {
                     <Sparkles className="h-6 w-6 text-primary" />
                     <h1 className="text-xl font-bold tracking-tight">TechArohana</h1>
                 </div>
-                <div className="mt-3">
+                <div className="mt-3 space-y-2">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <SidebarInput
@@ -228,64 +152,52 @@ export function AppSidebar() {
                     <SidebarMenu>
                         <SidebarMenuItem>
                             <SidebarMenuButton asChild>
-                                <Link href="/">
-                                    <Home className="h-4 w-4" />
-                                    <span>Dashboard</span>
-                                </Link>
+                                <Link href="/"><Home className="h-4 w-4" /><span>Dashboard</span></Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                         <SidebarMenuItem>
                             <SidebarMenuButton asChild>
-                                <Link href="/random-question">
-                                    <FileQuestion className="h-4 w-4" />
-                                    <span>Random Question</span>
-                                </Link>
+                                <Link href="/random-question"><FileQuestion className="h-4 w-4" /><span>Random Question</span></Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                         <SidebarMenuItem>
                             <SidebarMenuButton asChild>
-                                <Link href="/glossary">
-                                    <BookOpen className="h-4 w-4" />
-                                    <span>Topic Glossary</span>
-                                </Link>
+                                <Link href="/glossary"><BookOpen className="h-4 w-4" /><span>Topic Glossary</span></Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                     </SidebarMenu>
                 </SidebarGroup>
 
                 <SidebarGroup>
-                    <div className="flex items-center justify-between px-3 py-1.5">
-                        <SidebarGroupLabel className="mb-0">Subjects</SidebarGroupLabel>
-                        <div className="flex gap-1">
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={expandAll}>
-                                            <ChevronsDown className="h-4 w-4" />
-                                            <span className="sr-only">Expand all</span>
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="right">Expand all</TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
+                    <SidebarGroupLabel className="flex justify-between items-center">
+                        <span className="flex items-center gap-2 font-semibold">
+                            <LayoutPanelTop className="h-4 w-4 text-muted-foreground" />
+                            Subjects
+                        </span>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={toggleSubjectsVisibility} className="hover:bg-muted">
+                                        {subjectsVisible ? (
+                                            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                        ) : (
+                                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{subjectsVisible ? "Hide All Subjects" : "Show All Subjects"}</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </SidebarGroupLabel>
 
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={collapseAll}>
-                                            <ChevronsUp className="h-4 w-4" />
-                                            <span className="sr-only">Collapse all</span>
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="right">Collapse all</TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        </div>
-                    </div>
                     <SidebarGroupContent>
-                        <SidebarMenu>{subjects.filter((s) => !s.is_shelved && filtered(s)).map(renderSubjectItem)}</SidebarMenu>
+                        {subjectsVisible && (
+                            <SidebarMenu>
+                                {subjects.filter(s => !s.is_shelved && filtered(s)).map(renderSubjectItem)}
+                            </SidebarMenu>
+                        )}
 
-                        {subjects.some((s) => s.is_shelved) && (
+                        {subjects.some(s => s.is_shelved) && (
                             <>
                                 <SidebarGroupLabel className="mt-4 flex justify-between items-center">
                                     <span>Shelved Subjects</span>
@@ -293,7 +205,7 @@ export function AppSidebar() {
                                 </SidebarGroupLabel>
                                 {showShelved && (
                                     <SidebarMenu>
-                                        {subjects.filter((s) => s.is_shelved && filtered(s)).map(renderSubjectItem)}
+                                        {subjects.filter(s => s.is_shelved && filtered(s)).map(renderSubjectItem)}
                                     </SidebarMenu>
                                 )}
                             </>
@@ -307,42 +219,12 @@ export function AppSidebar() {
                         <SidebarMenu>
                             <SidebarMenuItem>
                                 <SidebarMenuButton asChild>
-                                    <Link href="/admin/subjects">
-                                        <Layers className="h-4 w-4" />
-                                        <span>Manage Subjects</span>
-                                    </Link>
+                                    <Link href="/admin/questions"><Database className="h-4 w-4" /><span>Manage Questions</span></Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                             <SidebarMenuItem>
                                 <SidebarMenuButton asChild>
-                                    <Link href="/admin/topics">
-                                        <Code className="h-4 w-4" />
-                                        <span>Manage Topics</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild>
-                                    <Link href="/admin/subtopics">
-                                        <Layers3 className="h-4 w-4" />
-                                        <span>Manage Subtopics</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild>
-                                    <Link href="/admin/questions">
-                                        <Database className="h-4 w-4" />
-                                        <span>Manage Questions</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild>
-                                    <Link href="/admin/settings">
-                                        <Settings className="h-4 w-4" />
-                                        <span>Settings</span>
-                                    </Link>
+                                    <Link href="/admin/settings"><Settings className="h-4 w-4" /><span>Settings</span></Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                         </SidebarMenu>
@@ -353,10 +235,7 @@ export function AppSidebar() {
             <SidebarFooter className="border-t p-4">
                 <div className="flex items-center justify-between">
                     <Button asChild variant="outline" size="sm">
-                        <Link href="/admin/add-question">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Question
-                        </Link>
+                        <Link href="/admin/add-question"><Plus className="mr-2 h-4 w-4" />Add Question</Link>
                     </Button>
                     <ModeToggle />
                 </div>
